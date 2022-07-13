@@ -39,20 +39,6 @@
 using namespace realm;
 using namespace realm::util;
 
-namespace {
-
-class Initialization {
-public:
-    Initialization()
-    {
-        realm::cpuid_init();
-    }
-};
-
-Initialization initialization;
-
-} // anonymous namespace
-
 constexpr char Group::g_class_name_prefix[];
 constexpr size_t Group::g_class_name_prefix_len;
 

@@ -241,7 +241,7 @@ bool AESCryptor::read(FileDesc fd, off_t pos, char* dst, size_t size)
 {
     REALM_ASSERT(size % block_size == 0);
     while (size > 0) {
-        ssize_t bytes_read = check_read(fd, real_offset(pos), m_rw_buffer.get(), block_size);
+        size_t bytes_read = check_read(fd, real_offset(pos), m_rw_buffer.get(), block_size);
 
         if (bytes_read == 0)
             return false;
@@ -272,7 +272,7 @@ bool AESCryptor::read(FileDesc fd, off_t pos, char* dst, size_t size)
                 // old hmacs that don't go with this data. ftruncate() is
                 // required to fill any added space with zeroes, so assume that's
                 // what happened if the buffer is all zeroes
-                for (ssize_t i = 0; i < bytes_read; ++i) {
+                for (size_t i = 0; i < bytes_read; ++i) {
                     if (m_rw_buffer[i] != 0)
                         throw DecryptionFailed();
                 }
@@ -305,7 +305,7 @@ bool AESCryptor::read(FileDesc fd, off_t pos, char* dst, size_t size)
 
 void AESCryptor::try_read_block(FileDesc fd, off_t pos, char* dst) noexcept
 {
-    ssize_t bytes_read = check_read(fd, real_offset(pos), m_rw_buffer.get(), block_size);
+    size_t bytes_read = check_read(fd, real_offset(pos), m_rw_buffer.get(), block_size);
 
     if (bytes_read == 0) {
         std::cerr << "Read failed: 0x" << std::hex << pos << std::endl;

@@ -29,6 +29,8 @@
 * MemRef is now trivially copyable.
 * Fix bloaty CI test that is currently failing on Ubuntu. ([PR #5650](https://github.com/realm/realm-core/pull/5650))
 * Fix benchmark tests that are failing on Ubuntu and MacOS. ([PR #5656](https://github.com/realm/realm-core/pull/5656))
+* Remove `set_string_compare_method()` and everything related to it, which has never actually been used and was a bad solution to the problem it tried to solve.
+* Remove runtime CPUID checking as the most recent CPU features we rely on are now 15 years old.
 
 ----------------------------------------------
 
