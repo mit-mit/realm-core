@@ -46,6 +46,8 @@ fi
 
 mkdir -p build-xcode-platforms
 cd build-xcode-platforms
+ls -a
+xcode-select -print-path
 cmake \
     -D CMAKE_TOOLCHAIN_FILE="../tools/cmake/xcode.toolchain.cmake" \
     -D REALM_VERSION="${VERSION}" \
@@ -53,6 +55,7 @@ cmake \
     -D CPACK_PACKAGE_DIRECTORY=.. \
     ${CMAKE_FLAGS} \
     -G Xcode \
+    --trace-expand \
     ..
 
 xcodebuild -scheme ALL_BUILD -configuration ${buildType} -destination "${buildDestination}"
