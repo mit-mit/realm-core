@@ -93,33 +93,6 @@ jobWrapper {
         }
     }
 
-    if (isPullRequest) {
-        stage('FormatCheck') {
-            rlmNode('docker') {
-                getArchive()
-
-                buildDockerEnv('testing.Dockerfile').inside {
-                    echo "Checking code formatting"
-                    modifications = sh(returnStdout: true, script: "git clang-format --diff ${targetSHA1}").trim()
-                    try {
-                        if (!modifications.equals('no modified files to format')) {
-                            if (!modifications.equals('clang-format did not modify any files')) {
-                                echo "Commit violates formatting rules"
-                                sh "git clang-format --diff ${targetSHA1} > format_error.txt"
-                                archiveArtifacts('format_error.txt')
-                                sh 'exit 1'
-                            }
-                        }
-                        currentBuild.result = 'SUCCESS'
-                    } catch (Exception err) {
-                        currentBuild.result = 'FAILURE'
-                        throw err
-                    }
-                }
-            }
-        }
-    }
-
     stage('Checking') {
         def buildOptions = [
             buildType : 'Debug',
@@ -131,125 +104,10 @@ jobWrapper {
         ]
 
         parallelExecutors = [
-            buildLinuxRelease       : doBuildLinux('Release'),
-            checkLinuxDebug         : doCheckInDocker(buildOptions),
-            checkLinuxDebugEncrypt  : doCheckInDocker(buildOptions + [useEncryption : true]),
-            checkLinuxRelease_4     : doCheckInDocker(buildOptions + [maxBpNodeSize: 4, buildType : 'Release']),
-            checkLinuxDebug_Sync    : doCheckInDocker(buildOptions + [enableSync: true, dumpChangesetTransform: true]),
-            checkLinuxDebugNoEncryp : doCheckInDocker(buildOptions + [enableEncryption: false]),
-            checkMacOsRelease_Sync  : doBuildMacOs(buildOptions + [buildType: 'Release', enableSync: true]),
-            checkWindows_x86_Release: doBuildWindows('Release', false, 'Win32', true),
-            checkWindows_x64_Debug  : doBuildWindows('Debug', false, 'x64', true),
-            buildUWP_x86_Release    : doBuildWindows('Release', true, 'Win32', false),
-            buildWindows_ARM64_Debug: doBuildWindows('Debug', false, 'ARM64', false),
-            buildUWP_ARM64_Debug    : doBuildWindows('Debug', true, 'ARM64', false),
             checkiOSSimulator_Debug : doBuildApplePlatform('iphonesimulator', 'Debug', true),
             buildAppleTV_Debug      : doBuildApplePlatform('appletvos', 'Debug', false),
-            buildAndroidArm64Debug  : doAndroidBuildInDocker('arm64-v8a', 'Debug'),
-            buildAndroidTestsArmeabi: doAndroidBuildInDocker('armeabi-v7a', 'Debug', TestAction.Build),
-            threadSanitizer         : doCheckSanity(buildOptions + [enableSync: true, sanitizeMode: 'thread']),
-            addressSanitizer        : doCheckSanity(buildOptions + [enableSync: true, sanitizeMode: 'address']),
         ]
-        if (releaseTesting) {
-            extendedChecks = [
-                checkMacOsDebug               : doBuildMacOs(buildOptions + [buildType: "Release"]),
-                checkAndroidarmeabiDebug      : doAndroidBuildInDocker('armeabi-v7a', 'Debug', TestAction.Run),
-                // FIXME: https://github.com/realm/realm-core/issues/4159
-                //checkAndroidx86Release        : doAndroidBuildInDocker('x86', 'Release', TestAction.Run),
-                // FIXME: https://github.com/realm/realm-core/issues/4162
-                //coverage                      : doBuildCoverage(),
-                // valgrind                : doCheckValgrind()
-            ]
-            parallelExecutors.putAll(extendedChecks)
-        }
         parallel parallelExecutors
-    }
-
-    if (isPublishingRun) {
-
-        stage('BuildPackages') {
-            def buildOptions = [
-                enableSync: "ON",
-                runTests: false,
-            ]
-
-            parallelExecutors = [
-                buildMacOsRelease   : doBuildMacOs(buildOptions + [buildType : "Release"]),
-                buildCatalystRelease: doBuildApplePlatform('maccatalyst', 'Release'),
-
-                buildLinuxASAN      : doBuildLinuxClang("RelASAN"),
-                buildLinuxTSAN      : doBuildLinuxClang("RelTSAN")
-            ]
-
-            androidAbis = ['armeabi-v7a', 'x86', 'x86_64', 'arm64-v8a']
-            androidBuildTypes = ['Debug', 'Release']
-
-            for (abi in androidAbis) {
-                for (buildType in androidBuildTypes) {
-                    parallelExecutors["android-${abi}-${buildType}"] = doAndroidBuildInDocker(abi, buildType)
-                }
-            }
-
-            appleSdks = ['iphoneos', 'iphonesimulator',
-                         'appletvos', 'appletvsimulator',
-                         'watchos', 'watchsimulator']
-
-            for (sdk in appleSdks) {
-                parallelExecutors[sdk] = doBuildApplePlatform(sdk, 'Release')
-            }
-
-            linuxBuildTypes = ['Debug', 'Release', 'RelAssert']
-            for (buildType in linuxBuildTypes) {
-                parallelExecutors["buildLinux${buildType}"] = doBuildLinux(buildType)
-            }
-
-            windowsBuildTypes = ['Debug', 'Release']
-            windowsPlatforms = ['Win32', 'x64', 'ARM64']
-
-            for (buildType in windowsBuildTypes) {
-                for (platform in windowsPlatforms) {
-                    parallelExecutors["buildWindows-${platform}-${buildType}"] = doBuildWindows(buildType, false, platform, false)
-                    parallelExecutors["buildWindowsUniversal-${platform}-${buildType}"] = doBuildWindows(buildType, true, platform, false)
-                }
-                parallelExecutors["buildWindowsUniversal-ARM-${buildType}"] = doBuildWindows(buildType, true, 'ARM', false)
-            }
-
-            parallel parallelExecutors
-        }
-        stage('Aggregate Cocoa xcframeworks') {
-            rlmNode('osx') {
-                getArchive()
-                for (cocoaStash in cocoaStashes) {
-                    unstash name: cocoaStash
-                }
-                sh "tools/build-cocoa.sh -x -v \"${gitDescribeVersion}\""
-                archiveArtifacts('realm-*.tar.xz')
-                stash includes: 'realm-*.tar.xz', name: "cocoa"
-                publishingStashes << "cocoa"
-            }
-        }
-        stage('Publish to S3') {
-            rlmNode('docker') {
-                deleteDir()
-                dir('temp') {
-                    withAWS(credentials: 'tightdb-s3-ci', region: 'us-east-1') {
-                        for (publishingStash in publishingStashes) {
-                            dir(publishingStash) {
-                                unstash name: publishingStash
-                                def path = publishingStash.replaceAll('___', '/')
-                                def files = findFiles(glob: '**')
-                                for (file in files) {
-                                    s3Upload file: file.path, path: "downloads/core/${gitDescribeVersion}/${path}/${file.name}", bucket: 'static.realm.io'
-                                    if (!requireNightlyBuild) { // don't publish nightly builds in the non-versioned folder path
-                                        s3Upload file: file.path, path: "downloads/core/${file.name}", bucket: 'static.realm.io'
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -771,7 +629,8 @@ def doBuildMacOs(Map options = [:]) {
 
 def doBuildApplePlatform(String platform, String buildType, boolean test = false) {
     return {
-        rlmNode('osx') {
+        node('osx') {
+            echo "Running on ${env.NODE_NAME} in ${env.WORKSPACE}"
             getArchive()
 
             withEnv(['DEVELOPER_DIR=/Applications/Xcode-13.1.app/Contents/Developer/',

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+set -xeo pipefail
+
+env
 
 SCRIPT="$(basename "${BASH_SOURCE[0]}")"
 VERSION="$(git describe)"
