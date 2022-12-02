@@ -106,6 +106,9 @@ else()
 
     add_cxx_flag_if_supported(-Wpartial-availability)
 
+    # Make sure clang produces debug info for all types
+    add_cxx_flag_if_supported(-fno-limit-debug-info)
+
     # This warning is too agressive. It warns about moves that are not redundant on older
     # compilers that we still support. It is also harmless, unlike pessimizing moves.
     add_cxx_flag_if_supported(-Wno-redundant-move)
