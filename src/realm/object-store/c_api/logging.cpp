@@ -55,8 +55,8 @@ private:
 };
 } // namespace
 
-realm::SyncClientConfig::LoggerFactory make_logger_factory(realm_log_func_t logger, realm_userdata_t userdata,
-                                                           realm_free_userdata_func_t free_userdata)
+realm::util::LoggerFactory make_logger_factory(realm_log_func_t logger, realm_userdata_t userdata,
+                                               realm_free_userdata_func_t free_userdata)
 {
     return [logger, userdata = SharedUserdata{userdata, free_userdata}](Logger::Level level) {
         return std::make_shared<CLogger>(userdata, logger, level);

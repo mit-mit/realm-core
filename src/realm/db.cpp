@@ -29,6 +29,7 @@
 #include <random>
 #include <deque>
 #include <thread>
+#include <chrono>
 #include <condition_variable>
 
 #include <realm/disable_sync_to_disk.hpp>
@@ -685,6 +686,13 @@ void DB::open(const std::string& path, bool no_create_file, const DBOptions& opt
     REALM_ASSERT(!is_attached());
 
     m_db_path = path;
+    m_path_hash = StringData(path).hash() & 0xffff;
+    set_logger(options.logger);
+    if (m_replication) {
+        m_replication->set_logger(m_logger.get());
+    }
+    if (m_logger)
+        m_logger->log(util::Logger::Level::info, "Open file: %1", path);
     SlabAlloc& alloc = m_alloc;
     if (options.is_immutable) {
         SlabAlloc::Config cfg;
@@ -1245,6 +1253,35 @@ void DB::open(Replication& repl, const std::string& file, const DBOptions& optio
     open(file, no_create, options); // Throws
 }
 
+class DBLogger : public Logger {
+public:
+    DBLogger(const std::shared_ptr<Logger>& base_logger, size_t hash) noexcept
+        : Logger(base_logger->get_level_threshold())
+        , m_base_logger(base_logger)
+        , m_hash(hash)
+    {
+    }
+
+protected:
+    void do_log(Level level, const std::string& message) final
+    {
+        std::ostringstream ostr;
+        auto id = std::this_thread::get_id();
+        ostr << "DB: " << m_hash << " Thread " << id << ": ";
+        Logger::do_log(*m_base_logger, level, ostr.str() + message);
+    }
+
+private:
+    std::shared_ptr<util::Logger> m_base_logger;
+    size_t m_hash;
+};
+
+void DB::set_logger(const std::shared_ptr<util::Logger>& logger) noexcept
+{
+    if (logger)
+        m_logger = std::make_shared<DBLogger>(logger, m_path_hash);
+}
+
 void DB::create_new_history(Replication& repl)
 {
     Replication* old_repl = get_replication();
@@ -1315,6 +1352,7 @@ bool DB::compact(bool bump_version_number, util::Optional<const char*> output_en
     const char* write_key = bool(output_encryption_key) ? *output_encryption_key : get_encryption_key();
     {
         std::unique_lock<InterprocessMutex> lock(m_controlmutex); // Throws
+        auto t1 = std::chrono::steady_clock::now();
 
         // We must be the ONLY DB object attached if we're to do compaction
         if (info->num_participants > 1)
@@ -1326,6 +1364,7 @@ bool DB::compact(bool bump_version_number, util::Optional<const char*> output_en
         // in the VersionList. We need to have access to that later to update top_ref and file_size.
         // This is also needed to attach the group (get the proper top pointer, etc)
         TransactionRef tr = start_read();
+        auto file_size_before = tr->get_logical_file_size();
 
         // local lock blocking any transaction from starting (and stopping)
         CheckedLockGuard local_lock(m_mutex);
@@ -1398,6 +1437,11 @@ bool DB::compact(bool bump_version_number, util::Optional<const char*> output_en
             logical_file_size = Group::get_logical_file_size(top);
         }
         m_version_manager->init_versioning(top_ref, logical_file_size, info->latest_version_number);
+        if (m_logger) {
+            auto t2 = std::chrono::steady_clock::now();
+            m_logger->log(util::Logger::Level::info, "DB compacted from: %1 to %2 in %3 us", file_size_before,
+                          logical_file_size, std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count());
+        }
     }
     return true;
 }
@@ -1431,7 +1475,13 @@ void DB::write_copy(StringData path, const char* output_encryption_key)
     file.open(path, File::access_ReadWrite, File::create_Must, 0);
     file.resize(0);
 
+    auto t1 = std::chrono::steady_clock::now();
     tr->write(file, output_encryption_key, info->latest_version_number, writer);
+    if (m_logger) {
+        auto t2 = std::chrono::steady_clock::now();
+        m_logger->log(util::Logger::Level::info, "DB written to '%1' in %2 us", path,
+                      std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count());
+    }
 }
 
 uint_fast64_t DB::get_number_of_versions()
@@ -1546,6 +1596,8 @@ void DB::close_internal(std::unique_lock<InterprocessMutex> lock, bool allow_ope
         m_file.unlock();
         // info->~SharedInfo(); // DO NOT Call destructor
         m_file.close();
+        if (m_logger)
+            m_logger->log(util::Logger::Level::info, "DB closed");
     }
 }
 
@@ -2171,11 +2223,15 @@ void DB::low_level_commit(uint_fast64_t new_version, Transaction& transaction, b
 
     GroupWriter out(transaction, Durability(info->durability)); // Throws
     out.set_versions(new_version, top_refs, any_new_unreachables);
-
+    auto t1 = std::chrono::steady_clock::now();
+    auto commit_size = m_alloc.get_commit_size();
+    if (m_logger) {
+        m_logger->log(util::Logger::Level::debug, "Initiate commit version: %1", new_version);
+    }
     if (auto limit = out.get_evacuation_limit()) {
         // Get a work limit based on the size of the transaction we're about to commit
         // Assume at least 4K on top of that for the top arrays
-        size_t work_limit = 4 * 1024 + m_alloc.get_commit_size() / 2;
+        size_t work_limit = 4 * 1024 + commit_size / 2;
         transaction.cow_outliers(out.get_evacuation_progress(), limit, work_limit);
     }
 
@@ -2245,6 +2301,11 @@ void DB::low_level_commit(uint_fast64_t new_version, Transaction& transaction, b
         info->latest_version_number = new_version;
 
         m_new_commit_available.notify_all();
+    }
+    auto t2 = std::chrono::steady_clock::now();
+    if (m_logger) {
+        m_logger->log(util::Logger::Level::debug, "Commit of size %1 done in %2 us", commit_size,
+                      std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count());
     }
 }
 
@@ -2393,6 +2454,10 @@ void DB::async_request_write_mutex(TransactionRef& tr, util::UniqueFunction<void
         util::CheckedLockGuard lck(tr->m_async_mutex);
         REALM_ASSERT(tr->m_async_stage == Transaction::AsyncState::Idle);
         tr->m_async_stage = Transaction::AsyncState::Requesting;
+        tr->m_request_time_point = std::chrono::steady_clock::now();
+        if (tr->db->m_logger) {
+            tr->db->m_logger->log(util::Logger::Level::trace, "Async request write lock");
+        }
     }
     std::weak_ptr<Transaction> weak_tr = tr;
     async_begin_write([weak_tr, cb = std::move(when_acquired)]() {
@@ -2402,6 +2467,12 @@ void DB::async_request_write_mutex(TransactionRef& tr, util::UniqueFunction<void
             // we may be in HasCommits
             if (tr->m_async_stage == Transaction::AsyncState::Requesting) {
                 tr->m_async_stage = Transaction::AsyncState::HasLock;
+            }
+            if (tr->db->m_logger) {
+                auto t2 = std::chrono::steady_clock::now();
+                tr->db->m_logger->log(
+                    util::Logger::Level::trace, "Got write lock in %1 us",
+                    std::chrono::duration_cast<std::chrono::microseconds>(t2 - tr->m_request_time_point).count());
             }
             if (tr->m_waiting_for_write_lock) {
                 tr->m_waiting_for_write_lock = false;

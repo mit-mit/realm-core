@@ -70,6 +70,9 @@ typedef Link BackLink;
 namespace _impl {
 class TableFriend;
 }
+namespace util {
+class Logger;
+}
 namespace metrics {
 class QueryInfo;
 }
@@ -813,6 +816,7 @@ private:
     const Table* get_link_chain_target(const std::vector<ColKey>&) const;
 
     Replication* get_repl() const noexcept;
+    util::Logger* get_logger() const noexcept;
 
     void set_ndx_in_parent(size_t ndx_in_parent) noexcept;
 

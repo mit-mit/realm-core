@@ -2155,12 +2155,12 @@ TEST_CASE("app: sync integration", "[sync][app]") {
         AutoVerifiedEmailCredentials creds;
 
         auto app_config = get_config(redir_transport, session.app_session());
+        app_config.log_level = realm::util::Logger::Level::TEST_ENABLE_SYNC_LOGGING_LEVEL;
         set_app_config_defaults(app_config, redir_transport);
 
         util::try_make_dir(base_file_path);
         SyncClientConfig sc_config;
         sc_config.base_file_path = base_file_path;
-        sc_config.log_level = realm::util::Logger::Level::TEST_ENABLE_SYNC_LOGGING_LEVEL;
         sc_config.metadata_mode = realm::SyncManager::MetadataMode::NoEncryption;
 
         // initialize app and sync client

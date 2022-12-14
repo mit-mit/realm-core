@@ -66,6 +66,9 @@ public:
         std::string platform;
         std::string platform_version;
         std::string sdk_version;
+        util::LoggerFactory logger_factory;
+        // FIXME: Should probably be util::Logger::Level::error
+        util::Logger::Level log_level = util::Logger::Level::info;
     };
 
     // `enable_shared_from_this` is unsafe with public constructors; use `get_shared_app` instead
@@ -362,6 +365,26 @@ public:
     // reloads an app (#5411).
     static void close_all_sync_sessions();
 
+    // Sets the log level for the Application
+    // The log level can only be set up until the point the Sync Client is
+    // created (when the first Session is created) or an App operation is
+    // performed (e.g. log in).
+    void set_log_level(util::Logger::Level) noexcept;
+    void set_logger_factory(util::LoggerFactory);
+    std::shared_ptr<util::Logger> get_logger_instance() const noexcept
+    {
+        init_logger();
+        return m_logger_ptr;
+    }
+    util::Logger& get_logger() const noexcept
+    {
+        return *m_logger_ptr;
+    }
+    util::Logger::Level log_level() const noexcept
+    {
+        return m_config.log_level;
+    }
+
 private:
     friend class Internal;
     friend class OnlyForTesting;
@@ -379,7 +402,7 @@ private:
     /// m_Logger_ptr is not set until the first call to one of these functions.
     /// If configure() not been called, a logger will not be available yet.
     /// @returns true if the logger was set, otherwise false.
-    bool init_logger();
+    bool init_logger() const;
     /// These helpers prevent all the checks for if(m_logger_ptr) throughout the
     /// code.
     bool would_log(util::Logger::Level level);

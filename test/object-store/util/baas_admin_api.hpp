@@ -240,7 +240,9 @@ inline app::App::Config get_config(Factory factory, const AppSession& app_sessio
             util::none,
             "Object Store Platform Tests",
             "Object Store Platform Version Blah",
-            "An sdk version"};
+            "An sdk version",
+            nullptr,
+            util::Logger::Level::info};
 }
 
 } // namespace realm

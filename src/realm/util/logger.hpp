@@ -119,6 +119,8 @@ private:
     REALM_NOINLINE void do_log(Level, const char* message, Params&&...);
 };
 
+using LoggerFactory = std::function<std::shared_ptr<util::Logger>(util::Logger::Level)>;
+
 template <class C, class T>
 std::basic_ostream<C, T>& operator<<(std::basic_ostream<C, T>&, Logger::Level);
 

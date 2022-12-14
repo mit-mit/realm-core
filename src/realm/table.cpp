@@ -2620,6 +2620,11 @@ const Table* Table::get_link_chain_target(const std::vector<ColKey>& link_chain)
     return table;
 }
 
+util::Logger* Table::get_logger() const noexcept
+{
+    return *m_repl ? (*m_repl)->get_logger() : nullptr;
+}
+
 // Called after a commit. Table will effectively contain the same as before,
 // but now with new refs from the file
 void Table::update_from_parent() noexcept

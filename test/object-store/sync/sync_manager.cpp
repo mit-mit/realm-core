@@ -57,10 +57,10 @@ TEST_CASE("sync_manager: basic properties and APIs", "[sync]") {
     auto app = init_sync_manager.app();
 
     SECTION("should work for log level") {
-        app->sync_manager()->set_log_level(util::Logger::Level::info);
-        REQUIRE(app->sync_manager()->log_level() == util::Logger::Level::info);
-        app->sync_manager()->set_log_level(util::Logger::Level::error);
-        REQUIRE(app->sync_manager()->log_level() == util::Logger::Level::error);
+        app->set_log_level(util::Logger::Level::info);
+        REQUIRE(app->log_level() == util::Logger::Level::info);
+        app->set_log_level(util::Logger::Level::error);
+        REQUIRE(app->log_level() == util::Logger::Level::error);
     }
 
     SECTION("should not crash on 'reconnect()'") {

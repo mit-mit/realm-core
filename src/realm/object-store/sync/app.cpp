@@ -255,6 +255,13 @@ App::~App() {}
 
 void App::configure(const SyncClientConfig& sync_client_config)
 {
+    if (m_config.logger_factory) {
+        m_logger_ptr = m_config.logger_factory(m_config.log_level);
+    }
+    else {
+        // recreate the logger as a StderrLogger, even if it was created before...
+        m_logger_ptr = std::make_shared<util::StderrLogger>(m_config.log_level);
+    }
     auto sync_route = make_sync_route(m_app_route);
     m_sync_manager->configure(shared_from_this(), sync_route, sync_client_config);
     if (auto metadata = m_sync_manager->app_metadata()) {
@@ -262,13 +269,8 @@ void App::configure(const SyncClientConfig& sync_client_config)
     }
 }
 
-inline bool App::init_logger()
+inline bool App::init_logger() const
 {
-    // If a log function is called before configure(), a null ptr will be
-    // returned by get_logger()
-    if (!m_logger_ptr) {
-        m_logger_ptr = m_sync_manager->get_logger();
-    }
     return bool(m_logger_ptr);
 }
 
@@ -1179,6 +1181,26 @@ Request App::make_streaming_request(const std::shared_ptr<SyncUser>& user, const
 PushClient App::push_notification_client(const std::string& service_name)
 {
     return PushClient(service_name, m_config.app_id, m_request_timeout_ms, shared_from_this());
+}
+
+void App::set_log_level(util::Logger::Level level) noexcept
+{
+    m_config.log_level = level;
+    // Update the level threshold in the already created logger
+    if (m_logger_ptr) {
+        m_logger_ptr->set_level_threshold(level);
+    }
+}
+
+void App::set_logger_factory(util::LoggerFactory factory)
+{
+    m_config.logger_factory = std::move(factory);
+
+    if (m_sync_manager && m_sync_manager->m_sync_client)
+        throw std::logic_error("Cannot set the logger_factory after creating the sync client");
+
+    // Create a new logger using the new factory
+    m_logger_ptr = m_config.logger_factory(m_config.log_level);
 }
 
 } // namespace app

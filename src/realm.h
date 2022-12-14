@@ -2909,6 +2909,10 @@ RLM_API void realm_app_config_set_default_request_timeout(realm_app_config_t*, u
 RLM_API void realm_app_config_set_platform(realm_app_config_t*, const char*) RLM_API_NOEXCEPT;
 RLM_API void realm_app_config_set_platform_version(realm_app_config_t*, const char*) RLM_API_NOEXCEPT;
 RLM_API void realm_app_config_set_sdk_version(realm_app_config_t*, const char*) RLM_API_NOEXCEPT;
+RLM_API void realm_app_config_set_log_callback(realm_app_config_t*, realm_log_func_t, realm_userdata_t userdata,
+                                               realm_free_userdata_func_t userdata_free) RLM_API_NOEXCEPT;
+RLM_API void realm_app_config_set_log_level(realm_app_config_t*, realm_log_level_e) RLM_API_NOEXCEPT;
+
 /**
  * Get an existing @a realm_app_credentials_t and return it's json representation
  * Note: the caller must delete the pointer to the string via realm_release
@@ -3610,10 +3614,6 @@ RLM_API void realm_sync_client_config_set_metadata_mode(realm_sync_client_config
                                                         realm_sync_client_metadata_mode_e) RLM_API_NOEXCEPT;
 RLM_API void realm_sync_client_config_set_metadata_encryption_key(realm_sync_client_config_t*,
                                                                   const uint8_t[64]) RLM_API_NOEXCEPT;
-RLM_API void realm_sync_client_config_set_log_callback(realm_sync_client_config_t*, realm_log_func_t,
-                                                       realm_userdata_t userdata,
-                                                       realm_free_userdata_func_t userdata_free) RLM_API_NOEXCEPT;
-RLM_API void realm_sync_client_config_set_log_level(realm_sync_client_config_t*, realm_log_level_e) RLM_API_NOEXCEPT;
 RLM_API void realm_sync_client_config_set_reconnect_mode(realm_sync_client_config_t*,
                                                          realm_sync_client_reconnect_mode_e) RLM_API_NOEXCEPT;
 RLM_API void realm_sync_client_config_set_multiplex_sessions(realm_sync_client_config_t*, bool) RLM_API_NOEXCEPT;

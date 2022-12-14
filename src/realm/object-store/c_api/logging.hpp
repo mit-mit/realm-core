@@ -23,7 +23,7 @@
 
 namespace realm::c_api {
 
-realm::SyncClientConfig::LoggerFactory make_logger_factory(realm_log_func_t logger, void* userdata,
-                                                           realm_free_userdata_func_t free_userdata);
+realm::util::LoggerFactory make_logger_factory(realm_log_func_t logger, void* userdata,
+                                               realm_free_userdata_func_t free_userdata);
 
 } // namespace realm::c_api

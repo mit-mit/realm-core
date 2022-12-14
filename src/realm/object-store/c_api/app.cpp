@@ -19,6 +19,7 @@
 #include "types.hpp"
 #include "util.hpp"
 #include "conversion.hpp"
+#include "logging.hpp"
 
 #include <realm/object-store/sync/sync_user.hpp>
 #include <realm/object-store/sync/mongo_client.hpp>
@@ -342,6 +343,19 @@ RLM_API void realm_app_config_set_sdk_version(realm_app_config_t* config, const 
 {
     config->sdk_version = std::string(sdk_version);
 }
+
+RLM_API void realm_app_config_set_log_callback(realm_app_config_t* config, realm_log_func_t callback,
+                                               realm_userdata_t userdata,
+                                               realm_free_userdata_func_t userdata_free) noexcept
+{
+    config->logger_factory = make_logger_factory(callback, userdata, userdata_free);
+}
+
+RLM_API void realm_sync_client_config_set_log_level(realm_app_config_t* config, realm_log_level_e level) noexcept
+{
+    config->log_level = realm::util::Logger::Level(level);
+}
+
 
 RLM_API const char* realm_app_credentials_serialize_as_json(realm_app_credentials_t* app_credentials) noexcept
 {
