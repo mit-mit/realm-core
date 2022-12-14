@@ -831,6 +831,9 @@ void Transaction::acquire_write_lock()
 
 void Transaction::do_end_read() noexcept
 {
+    if (db->m_logger)
+        db->m_logger->log(util::Logger::Level::trace, "End transaction");
+
     prepare_for_close();
     detach();
 

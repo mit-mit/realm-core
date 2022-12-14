@@ -455,6 +455,17 @@ inline bool Transaction::internal_advance_read(O* observer, VersionID version_id
         return false;
     }
 
+    if (db->m_logger) {
+        if (writable) {
+            db->m_logger->log(util::Logger::Level::trace, "Promote to write: %1 -> %2", m_read_lock.m_version,
+                              new_read_lock.m_version);
+        }
+        else {
+            db->m_logger->log(util::Logger::Level::trace, "Advance read: %1 -> %2", m_read_lock.m_version,
+                              new_read_lock.m_version);
+        }
+    }
+
     DB::version_type old_version = m_read_lock.m_version;
     DB::ReadLockGuard g(*db, new_read_lock);
     DB::version_type new_version = new_read_lock.m_version;

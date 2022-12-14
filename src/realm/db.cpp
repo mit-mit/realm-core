@@ -29,6 +29,7 @@
 #include <random>
 #include <deque>
 #include <thread>
+#include <chrono>
 #include <condition_variable>
 
 #include <realm/disable_sync_to_disk.hpp>
@@ -685,6 +686,10 @@ void DB::open(const std::string& path, bool no_create_file, const DBOptions& opt
     REALM_ASSERT(!is_attached());
 
     m_db_path = path;
+    m_path_hash = StringData(path).hash() & 0xffff;
+    set_logger(options.logger);
+    if (m_logger)
+        m_logger->log(util::Logger::Level::debug, "Open file: %1", path);
     SlabAlloc& alloc = m_alloc;
     if (options.is_immutable) {
         SlabAlloc::Config cfg;
@@ -1243,6 +1248,35 @@ void DB::open(Replication& repl, const std::string& file, const DBOptions& optio
 
     bool no_create = false;
     open(file, no_create, options); // Throws
+}
+
+class DBLogger : public Logger {
+public:
+    DBLogger(const std::shared_ptr<Logger>& base_logger, size_t hash) noexcept
+        : Logger(base_logger->get_level_threshold())
+        , m_base_logger(base_logger)
+        , m_hash(hash)
+    {
+    }
+
+protected:
+    void do_log(Level level, const std::string& message) final
+    {
+        std::ostringstream ostr;
+        auto id = std::this_thread::get_id();
+        ostr << "DB: " << m_hash << " Thread " << id << ": ";
+        Logger::do_log(*m_base_logger, level, ostr.str() + message);
+    }
+
+private:
+    std::shared_ptr<util::Logger> m_base_logger;
+    size_t m_hash;
+};
+
+void DB::set_logger(const std::shared_ptr<util::Logger>& logger) noexcept
+{
+    if (logger)
+        m_logger = std::make_shared<DBLogger>(logger, m_path_hash);
 }
 
 void DB::create_new_history(Replication& repl)
@@ -2171,7 +2205,10 @@ void DB::low_level_commit(uint_fast64_t new_version, Transaction& transaction, b
 
     GroupWriter out(transaction, Durability(info->durability)); // Throws
     out.set_versions(new_version, top_refs, any_new_unreachables);
-
+    auto t1 = std::chrono::steady_clock::now();
+    if (m_logger) {
+        m_logger->log(util::Logger::Level::debug, "Initiate commit version: %1", new_version);
+    }
     if (auto limit = out.get_evacuation_limit()) {
         // Get a work limit based on the size of the transaction we're about to commit
         // Assume at least 4K on top of that for the top arrays
@@ -2246,6 +2283,11 @@ void DB::low_level_commit(uint_fast64_t new_version, Transaction& transaction, b
 
         m_new_commit_available.notify_all();
     }
+    auto t2 = std::chrono::steady_clock::now();
+    if (m_logger) {
+        m_logger->log(util::Logger::Level::debug, "Commit done. Duration: %1 us",
+                      std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count());
+    }
 }
 
 #ifdef REALM_DEBUG
@@ -2316,6 +2358,8 @@ TransactionRef DB::start_read(VersionID version_id)
         ReadLockGuard g(*this, read_lock);
         read_lock.check();
         tr = make_transaction_ref(shared_from_this(), &m_alloc, read_lock, DB::transact_Reading);
+        if (m_logger)
+            m_logger->log(util::Logger::Level::trace, "Start read: %1", read_lock.m_version);
         g.release();
     }
     tr->set_file_format_version(get_file_format_version());
@@ -2335,6 +2379,8 @@ TransactionRef DB::start_frozen(VersionID version_id)
         ReadLockGuard g(*this, read_lock);
         read_lock.check();
         tr = make_transaction_ref(shared_from_this(), &m_alloc, read_lock, DB::transact_Frozen);
+        if (m_logger)
+            m_logger->log(util::Logger::Level::trace, "Start frozen: %1", read_lock.m_version);
         g.release();
     }
     tr->set_file_format_version(get_file_format_version());
@@ -2377,6 +2423,8 @@ TransactionRef DB::start_write(bool nonblocking)
             bool history_updated = false;
             repl->initiate_transact(*tr, current_version, history_updated); // Throws
         }
+        if (m_logger)
+            m_logger->log(util::Logger::Level::trace, "Start write: %1", current_version);
         g.release();
     }
     catch (...) {
