@@ -57,10 +57,10 @@ void Replication::add_class_with_primary_key(TableKey tk, StringData, DataType, 
     m_encoder.insert_group_level_table(tk); // Throws
 }
 
-void Replication::create_object(const Table* t, GlobalKey id)
+void Replication::create_object(const Table* t, ObjKey key)
 {
     select_table(t);                              // Throws
-    m_encoder.create_object(id.get_local_key(0)); // Throws
+    m_encoder.create_object(key);                 // Throws
 }
 
 void Replication::create_object_with_primary_key(const Table* t, ObjKey key, Mixed)

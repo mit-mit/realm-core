@@ -82,10 +82,10 @@ TEST(List_Mixed_do_insert)
 TEST(Mixed_List_unresolved_as_null)
 {
     Group g;
-    auto t = g.add_table("foo");
+    auto t = g.add_table_with_primary_key("foo", type_Int, "id");
     t->add_column_list(type_Mixed, "mixeds");
-    auto obj = t->create_object();
-    auto obj1 = t->create_object();
+    auto obj = t->create_object_with_primary_key(1);
+    auto obj1 = t->create_object_with_primary_key(2);
 
     auto list = obj.get_list<Mixed>("mixeds");
 
@@ -161,10 +161,10 @@ TEST(Mixed_List_unresolved_as_null)
 
     {
         Group g;
-        auto t = g.add_table("foo");
+        auto t = g.add_table_with_primary_key("foo", type_Int, "id");
         t->add_column_list(type_Mixed, "mixeds");
-        auto obj = t->create_object();
-        auto obj1 = t->create_object();
+        auto obj = t->create_object_with_primary_key(1);
+        auto obj1 = t->create_object_with_primary_key(2);
         auto list = obj.get_list<Mixed>("mixeds");
 
         list.insert(0, obj1);
@@ -179,10 +179,10 @@ TEST(Mixed_List_unresolved_as_null)
 
     {
         Group g;
-        auto t = g.add_table("foo");
+        auto t = g.add_table_with_primary_key("foo", type_Int, "id");
         t->add_column_list(type_Mixed, "mixeds");
-        auto obj = t->create_object();
-        auto obj1 = t->create_object();
+        auto obj = t->create_object_with_primary_key(1);
+        auto obj1 = t->create_object_with_primary_key(2);
         auto list = obj.get_list<Mixed>("mixeds");
 
         list.insert(0, obj1);
@@ -198,11 +198,11 @@ TEST(Mixed_Set_unresolved_links)
 {
     Group g;
 
-    auto t = g.add_table("foo");
+    auto t = g.add_table_with_primary_key("foo", type_Int, "id");
     t->add_column_set(type_Mixed, "mixeds");
-    auto obj = t->create_object();
-    auto obj1 = t->create_object();
-    auto obj2 = t->create_object();
+    auto obj = t->create_object_with_primary_key(1);
+    auto obj1 = t->create_object_with_primary_key(2);
+    auto obj2 = t->create_object_with_primary_key(3);
     auto set = obj.get_set<Mixed>("mixeds");
     auto [it, success] = set.insert(Mixed{obj1});
     obj1.invalidate();
@@ -254,11 +254,11 @@ TEST(Mixed_Set_unresolved_links)
     {
         // erase null but there are only unresolved links in the set
         Group g;
-        auto t = g.add_table("foo");
+        auto t = g.add_table_with_primary_key("foo", type_Int, "id");
         t->add_column_set(type_Mixed, "mixeds");
-        auto obj = t->create_object();
-        auto obj1 = t->create_object();
-        auto obj2 = t->create_object();
+        auto obj = t->create_object_with_primary_key(1);
+        auto obj1 = t->create_object_with_primary_key(2);
+        auto obj2 = t->create_object_with_primary_key(3);
         auto set = obj.get_set<Mixed>("mixeds");
         set.insert(obj1);
         set.insert(obj2);
@@ -279,11 +279,11 @@ TEST(Mixed_Set_unresolved_links)
     {
         // erase null when there are unresolved and nulls
         Group g;
-        auto t = g.add_table("foo");
+        auto t = g.add_table_with_primary_key("foo", type_Int, "id");
         t->add_column_set(type_Mixed, "mixeds");
-        auto obj = t->create_object();
-        auto obj1 = t->create_object();
-        auto obj2 = t->create_object();
+        auto obj = t->create_object_with_primary_key(1);
+        auto obj1 = t->create_object_with_primary_key(2);
+        auto obj2 = t->create_object_with_primary_key(3);
         auto set = obj.get_set<Mixed>("mixeds");
         set.insert(obj1);
         set.insert(obj2);
@@ -305,11 +305,11 @@ TEST(Mixed_Set_unresolved_links)
     {
         // assure that random access iterator does not return an unresolved link
         Group g;
-        auto t = g.add_table("foo");
+        auto t = g.add_table_with_primary_key("foo", type_Int, "id");
         t->add_column_set(type_Mixed, "mixeds");
-        auto obj = t->create_object();
-        auto obj1 = t->create_object();
-        auto obj2 = t->create_object();
+        auto obj = t->create_object_with_primary_key(1);
+        auto obj1 = t->create_object_with_primary_key(2);
+        auto obj2 = t->create_object_with_primary_key(3);
         auto set = obj.get_set<Mixed>("mixeds");
         set.insert(obj1);
         set.insert(obj2);

@@ -37,7 +37,6 @@ class CascadeState;
 class LstBase;
 class SetBase;
 class ObjList;
-struct GlobalKey;
 
 template <class>
 class Lst;
@@ -117,7 +116,6 @@ public:
         return m_key;
     }
 
-    GlobalKey get_object_id() const;
     ObjLink get_link() const;
 
     Replication* get_replication() const;
