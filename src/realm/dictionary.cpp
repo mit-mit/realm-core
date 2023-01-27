@@ -740,6 +740,10 @@ void Dictionary::clear()
         if (recurse)
             _impl::TableFriend::remove_recursive(*m_obj.get_table(), cascade_state); // Throws
     }
+    if (size() == 0) {
+        Replication* repl = m_obj.get_replication();
+        repl->dictionary_clear(*this);
+    }
 }
 
 bool Dictionary::init_from_parent(bool allow_create) const

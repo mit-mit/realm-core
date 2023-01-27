@@ -66,15 +66,16 @@ enum Instruction {
     instr_DictionaryInsert = 37,
     instr_DictionarySet = 38,
     instr_DictionaryErase = 39,
+    instr_DictionaryClear = 40,
 
-    instr_SetInsert = 40, // Insert value into set
-    instr_SetErase = 41,  // Erase value from set
-    instr_SetClear = 42,  // Remove all values in a set
+    instr_SetInsert = 41, // Insert value into set
+    instr_SetErase = 42,  // Erase value from set
+    instr_SetClear = 43,  // Remove all values in a set
 
     // An action involving TypedLinks has occured which caused
     // the number of backlink columns to change. This can happen
     // when a TypedLink is created for the first time to a Table.
-    instr_TypedLinkChange = 43,
+    instr_TypedLinkChange = 44,
 };
 
 class TransactLogStream {
@@ -184,6 +185,10 @@ public:
     {
         return true;
     }
+    bool dictionary_clear(size_t)
+    {
+        return true;
+    }
 
     // Must have descriptor selected:
     bool insert_column(ColKey)
@@ -289,6 +294,7 @@ public:
     bool dictionary_insert(size_t dict_ndx, Mixed key);
     bool dictionary_set(size_t dict_ndx, Mixed key);
     bool dictionary_erase(size_t dict_ndx, Mixed key);
+    bool dictionary_clear(size_t dict_size);
 
     bool typed_link_change(ColKey col, TableKey dest);
 
@@ -872,6 +878,12 @@ void TransactLogParser::parse_one(InstructionHandler& handler)
                 parser_error();
             return;
         }
+        case instr_DictionaryClear: {
+            size_t dict_size = read_int<size_t>(); // Throws
+            if (!handler.dictionary_clear(dict_size))
+                parser_error();
+            return;
+        }
         case instr_SetInsert: {
             size_t set_ndx = read_int<size_t>(); // Throws
             if (!handler.set_insert(set_ndx))    // Throws
@@ -1130,6 +1142,11 @@ public:
     bool dictionary_erase(size_t dict_ndx, Mixed key)
     {
         m_encoder.dictionary_insert(dict_ndx, key);
+        return true;
+    }
+
+    bool dictionary_clear(size_t)
+    {
         return true;
     }
 

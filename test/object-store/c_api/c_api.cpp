@@ -4278,6 +4278,16 @@ TEST_CASE("C API", "[c_api]") {
                     CHECK(deletion_range.to == 1);
                     CHECK(insertion_range.from == 0);
                     CHECK(insertion_range.to == 2);
+
+                    write([&]() {
+                        checked(realm_dictionary_clear(strings.get()));
+                    });
+
+                    size_t num_deletions, num_insertions, num_modifications;
+                    bool collection_cleared = false;
+                    realm_collection_changes_get_num_changes(state.changes.get(), &num_deletions, &num_insertions,
+                                                             &num_modifications, &num_moves, &collection_cleared);
+                    CHECK(collection_cleared == true);
                 }
             }
 
