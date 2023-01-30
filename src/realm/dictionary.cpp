@@ -742,7 +742,9 @@ void Dictionary::clear()
     }
     if (size() == 0) {
         Replication* repl = m_obj.get_replication();
-        repl->dictionary_clear(*this);
+        if (repl) {
+            repl->dictionary_clear(*this);
+        }
     }
 }
 
