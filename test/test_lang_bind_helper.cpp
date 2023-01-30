@@ -2233,56 +2233,56 @@ TEST_TYPES(LangBindHelper_AdvanceReadTransact_TransactLog, AdvanceReadTransact, 
 
 TEST(LangBindHelper_AdvanceReadTransact_ErrorInObserver)
 {
-    // SHARED_GROUP_TEST_PATH(path);
-    // std::unique_ptr<Replication> hist(make_in_realm_history());
-    // DBRef sg = DB::create(*hist, path, DBOptions(crypt_key()));
-    // ColKey col;
-    // Obj obj;
-    // // Add some initial data and then begin a read transaction at that version
-    // auto wt1 = sg->start_write();
-    // TableRef table = wt1->add_table("Table");
-    // col = table->add_column(type_Int, "int");
-    // auto obj2 = table->create_object().set_all(10);
-    // wt1->commit_and_continue_as_read();
+    SHARED_GROUP_TEST_PATH(path);
+    std::unique_ptr<Replication> hist(make_in_realm_history());
+    DBRef sg = DB::create(*hist, path, DBOptions(crypt_key()));
+    ColKey col;
+    Obj obj;
+    // Add some initial data and then begin a read transaction at that version
+    auto wt1 = sg->start_write();
+    TableRef table = wt1->add_table("Table");
+    col = table->add_column(type_Int, "int");
+    auto obj2 = table->create_object().set_all(10);
+    wt1->commit_and_continue_as_read();
 
-    // auto g = sg->start_read();     // must follow commit, to see table just created
-    // obj = g->import_copy_of(obj2); // cannot be imported if table does not exist
-    // wt1->end_read();               // wt1 must live long enough to support import_copy_of of obj2
-    // // Modify the data with a different SG so that we can determine which version
-    // // the read transaction is using
-    // {
-    //     auto wt = sg->start_write();
-    //     Obj o2 = wt->import_copy_of(obj);
-    //     o2.set<int64_t>(col, 20);
-    //     wt->commit();
-    // }
+    auto g = sg->start_read();     // must follow commit, to see table just created
+    obj = g->import_copy_of(obj2); // cannot be imported if table does not exist
+    wt1->end_read();               // wt1 must live long enough to support import_copy_of of obj2
+    // Modify the data with a different SG so that we can determine which version
+    // the read transaction is using
+    {
+        auto wt = sg->start_write();
+        Obj o2 = wt->import_copy_of(obj);
+        o2.set<int64_t>(col, 20);
+        wt->commit();
+    }
 
-    // struct ObserverError {
-    // };
-    // try {
-    //     struct : NoOpTransactionLogParser {
-    //         using NoOpTransactionLogParser::NoOpTransactionLogParser;
+    struct ObserverError {
+    };
+    try {
+        struct : NoOpTransactionLogParser {
+            using NoOpTransactionLogParser::NoOpTransactionLogParser;
 
-    //         bool modify_object(ColKey, ObjKey) const
-    //         {
-    //             throw ObserverError();
-    //         }
-    //     } parser(test_context);
-    //     g->advance_read(&parser);
-    //     CHECK(false); // Should not be reached
-    // }
-    // catch (ObserverError) {
-    // }
+            bool modify_object(ColKey, ObjKey) const
+            {
+                throw ObserverError();
+            }
+        } parser(test_context);
+        g->advance_read(&parser);
+        CHECK(false); // Should not be reached
+    }
+    catch (ObserverError) {
+    }
 
-    // // Should still see data from old version
-    // auto o = g->import_copy_of(obj);
-    // CHECK_EQUAL(10, o.get<int64_t>(col));
+    // Should still see data from old version
+    auto o = g->import_copy_of(obj);
+    CHECK_EQUAL(10, o.get<int64_t>(col));
 
-    // // Should be able to advance to the new version still
-    // g->advance_read();
+    // Should be able to advance to the new version still
+    g->advance_read();
 
-    // // And see that version's data
-    // CHECK_EQUAL(20, o.get<int64_t>(col));
+    // And see that version's data
+    CHECK_EQUAL(20, o.get<int64_t>(col));
 }
 
 
@@ -4815,8 +4815,9 @@ TEST(LangBindHelper_HandoverQuerySubQuery)
 
         group_w->commit_and_continue_as_read();
 
-        realm::Query query_2 = source->column<Link>(col_link, target->column<String>(col_name) == "C").count() ==
-        1; reader = group_w->duplicate(); query = reader->import_copy_of(query_2, PayloadPolicy::Copy);
+        realm::Query query_2 = source->column<Link>(col_link, target->column<String>(col_name) == "C").count() == 1;
+        reader = group_w->duplicate();
+        query = reader->import_copy_of(query_2, PayloadPolicy::Copy);
     }
 
     CHECK_EQUAL(1, query->count());
