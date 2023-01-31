@@ -676,7 +676,7 @@ void SyncReplication::dictionary_erase(const CollectionBase& dict, size_t ndx, M
 
 void SyncReplication::dictionary_clear(const CollectionBase& dict)
 {
-    Replication::set_clear(dict);
+    Replication::dictionary_clear(dict);
 
     if (select_collection(dict)) {
         Instruction::Clear instr;
