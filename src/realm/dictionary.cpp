@@ -727,9 +727,6 @@ void Dictionary::clear()
             if (repl) {
                 // Logically we always erase the first element
                 repl->dictionary_erase(*this, 0, elem.first);
-                if (size() == 0) {
-                    repl->dictionary_clear(*this);
-                }
             }
         }
         // Just destroy the whole cluster
@@ -741,6 +738,9 @@ void Dictionary::clear()
         if (recurse)
             _impl::TableFriend::remove_recursive(*m_obj.get_table(), cascade_state); // Throws
     }
+    Replication* repl = m_obj.get_replication();
+    if (repl)
+        repl->dictionary_clear(*this);
 }
 
 bool Dictionary::init_from_parent(bool allow_create) const
