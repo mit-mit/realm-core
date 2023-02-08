@@ -6,6 +6,7 @@
 
 ### Fixed
 * <How do the end-user experience this issue? what was the impact?> ([#????](https://github.com/realm/realm-core/issues/????), since v?.?.?)
+* App 301/308 redirection support doesn't use new location if metadata mode is set to 'NoMetadata'. ([#6280](https://github.com/realm/realm-core/issues/6280), since v12.9.0)
 * Signal that dictionaries have been cleared in the same way List and Set work ([#6205](https://github.com/realm/realm-core/issues/6205), since v.10.4.0)
 
 ### Breaking changes
